@@ -20,6 +20,7 @@ model Client {
 model Transaction {
   id        String   @id @default(uuid())
   type      String
+  amount    Float
   createdAt DateTime @default(now())
 
   client   Client? @relation(fields: [clientId], references: [id])

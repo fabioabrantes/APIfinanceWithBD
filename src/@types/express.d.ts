@@ -7,7 +7,6 @@ type Client = {
   cpf:string;
   name:string;
   id:string;
-  statements: Transaction[];
 }
 
 declare namespace Express{

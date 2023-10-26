@@ -1,8 +1,8 @@
 import express, {Request, Response,NextFunction} from 'express';
-import { v4 as uuidv4 } from 'uuid';
+
+import {prisma} from './database/repositoryClient';
 
 import {getBalance} from './utils/extractor';
-import {prisma} from './database/prismaClient';
 
 export type Transaction = {
   type:string;
@@ -23,9 +23,14 @@ const app = express();
 app.use(express.json());
 
 // middleware
-function verifyIfExistsAccountCPF(req:Request, resp:Response,next:NextFunction,){
-  const {cpf} = req.headers;  
-  const ClientExists = clients.find((client)=>client.cpf === cpf);
+async function verifyIfExistsAccountCPF(req:Request, resp:Response,next:NextFunction,){
+  const {cpf} = req.headers as {cpf:string};  
+
+  const ClientExists = await prisma.client.findUnique({
+    where:{
+      cpf
+    }
+  });
 
     if(!ClientExists){
       return resp.status(400).json({message:'Error: not client exists'})
@@ -39,11 +44,17 @@ app.post('/clientsAccount',(request,response)=>{
   const {cpf,name} = request.body;
  
   const ClientNew = prisma.client.create({
-    data:{
-      cpf,
-      name,
+   data:{
+    name,
+    cpf,
+    transactions:{
+      create:{
+        type:'credit',
+        amount:100
+      }
     }
-  })
+   },
+  });
 
   return response.status(201).json(ClientNew)
 
@@ -51,18 +62,22 @@ app.post('/clientsAccount',(request,response)=>{
 
 app.delete('/clientsAccount',verifyIfExistsAccountCPF, (req, res)=>{
   
-  const ClientExists = clients.findIndex((client)=>client.cpf === req.client.cpf);
-  if(ClientExists === -1){
-    return res.status(400).json({message:"cliente não existe"})
-  }
-
-  clients.splice(ClientExists,1);
-
+  prisma.client.delete({
+    where:{
+      cpf:req.client.cpf
+    }
+  })
+ 
   return res.status(200).json({message:"cliente removido"})
 
 });
 
 app.get('/account/alls', (req, res) => {
+  const clients = prisma.client.findMany({
+    include:{
+      transactions:true,
+    }
+  })
   return res.status(200).json(clients);
 });
 
@@ -71,19 +86,23 @@ app.get('/account/alls', (req, res) => {
 app.post('/transactions',verifyIfExistsAccountCPF, (request,response)=>{
   
   const {amount,type} = request.body;
- 
-  const transaction: Transaction = {
-    type,
-    date: new Date(),
-    amount
-  }
-  request.client.statements.push(transaction);
 
-  const resultado = {
-    transaction,
-    client: request.client
-  }
-  return response.status(201).json(resultado);
+  const transaction = await prisma.transaction.create({
+    data: {
+     amount,
+     type,
+      client: {
+        connect: { id: request.client.id },
+      },
+    },
+    select:{
+      type,
+      amount,
+    }
+  })
+
+
+  return response.status(201).json(transaction);
 
 });
 
