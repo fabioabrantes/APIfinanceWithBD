@@ -1,33 +1,23 @@
-import {Request,Response,Router} from 'express';
+import {Router} from 'express';
 
-import {RegisterClientController} from '../controller/RegisterClientController';
-
+//middleware
 import {verifyIfExistsAccountCPF} from '../middlewares/verifyIfExistsAccountCPF';
 
-import {prisma} from '../database/repositoryClient';
+//controllers
+import {RegisterClientController} from '../controllers/RegisterClientController';
+import { DeleteClientController } from '../controllers/DeleteClientController';
+import { FindAllClientsController } from '../controllers/FindAllClientsController';
+
 
 const routesClients = Router();
 
 const registerClientController = new RegisterClientController();
 routesClients.post('/clientsAccount',registerClientController.handle);
-routesClients.delete('/clientsAccount',verifyIfExistsAccountCPF, async (req, res)=>{
-  
-  await prisma.client.delete({
-    where:{
-      cpf:req.client.cpf
-    }
-  })
- 
-  return res.status(200).json({message:"cliente removido"})
 
-});
-routesClients.get('/account/alls', async (req, res) => {
-  const clients = await prisma.client.findMany({
-    include:{
-      transactions:true,
-    },
-  })
-  return res.status(200).json(clients);
-});
+const deleteClientController = new DeleteClientController();
+routesClients.delete('/clientsAccount',verifyIfExistsAccountCPF, deleteClientController.handle);
+
+const findAllClientsController = new FindAllClientsController();
+routesClients.get('/account/alls', findAllClientsController.handle);
 
 export {routesClients}
